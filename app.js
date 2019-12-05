@@ -4,35 +4,15 @@ const bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken')
 const fs = require('fs')
 const randtoken = require('rand-token')
-const passport = require('passport')
-const JwtStrategy = require('passport-jwt').Strategy
-const ExtractJwt = require('passport-jwt').ExtractJwt
 
 // const SECRET = 'ASDFUUSFASFSADFSFWEFMLIUIOPIOI'
 const privateKEY = fs.readFileSync('./private.key', 'utf8');
 const publicKEY = fs.readFileSync('./public.key', 'utf8');
 
 const refreshTokens = {}
-const opts = {}
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
-
-app.use(passport.initialize())
-
-
-opts.jwtFromRequest = ExtractJwt.fromAuthHeaderWithScheme('jwt');
-opts.secretOrKey = privateKEY;
-
-passport.use(new JwtStrategy(opts, (jwtPayload, done) => {
-    //If the token has expiration, raise unauthorized
-    var expirationDate = new Date(jwtPayload.exp * 1000)
-    if (expirationDate < new Date()) {
-        return done(null, false);
-    }
-    var user = jwtPayload
-    done(null, user)
-}))
 
 // issuer — Software organization who issues the token.
 // subject — Intended user of the token.
@@ -69,20 +49,9 @@ app.post('/login', (req, res, next) => {
     })
 })
 
-app.post('/token', function (req, res, next) {
-
-    // if (!req.header('Authorization')) {
-    //     return res.send(401)
-    // }
-    // const authenHeader = req.header('Authorization')
-    // const prefixAuthen = authenHeader.split(" ")
-    // const token = prefixAuthen[1]
-    // const legit = jwt.verify(token, publicKEY, signOptions);
-    // console.log(legit)
-    // console.log("\nJWT verification result: " + JSON.stringify(legit));
-
+app.post('/token', function (req, res) {
     const { username, refreshToken } = req.body
-    if ((refreshToken in refreshTokens) && (refreshTokens[refreshToken] == username) && authenHeader) {
+    if ((refreshToken in refreshTokens) && (refreshTokens[refreshToken] == username)) {
         const payload = {
             'username': username,
             'role': 'admin'
@@ -103,8 +72,18 @@ app.post('/token/reject', function (req, res, next) {
     res.send(204)
 })
 
-app.get('/test_jwt', passport.authenticate('jwt', { session: false }), (req, res) => {
-    res.json({ success: 'You are authenticated with JWT!', user: req.user })
+app.get('/test_jwt', (req, res) => {
+    try {
+        const authenHeader = req.header('Authorization')
+        const prefixAuthen = authenHeader.split(" ")
+        const token = prefixAuthen[1]
+        const legit = jwt.verify(token, publicKEY, signOptions);
+        // console.log("\nJWT verification result: " + JSON.stringify(legit));
+        res.send(legit)
+    } catch (error) {
+        console.log(error)
+        res.send(401)
+    }
 })
 
 app.listen(3000)
